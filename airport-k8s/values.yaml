@@ -1,0 +1,16 @@
+replicaCount: 1
+
+image:
+  repository: nicolascifuentesb/airport-k8s
+  tag: v1
+  pullPolicy: Always
+
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 3000
+
+container:
+  port: 3000
+
+appName: airport-k8s
