@@ -1,0 +1,43 @@
+name: CI-CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./microservices
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: DockerHub Login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Docker image
+        run: |
+          docker build -t nicolascifuentesb/airport-k8s:latest .
+
+      - name: Push Docker image
+        run: |
+          docker push nicolascifuentesb/airport-k8s:latest
