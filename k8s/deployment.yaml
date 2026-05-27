@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: airport-k8s
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: airport-k8s
+
+  template:
+    metadata:
+      labels:
+        app: airport-k8s
+
+    spec:
+      containers:
+        - name: airport-k8s
+
+          image: nicolascifuentesb/airport-k8s:v1
+
+          ports:
+            - containerPort: 3000
