@@ -1,12 +1,20 @@
-name: CI-CD Pipeline
+name: CI-CD GitOps Pipeline
 
 on:
-  push:
+  pull_request:
     branches:
       - main
+    types:
+      - closed
+
+permissions:
+  contents: write
 
 jobs:
-  build-and-push:
+
+  validate:
+    if: github.event.pull_request.merged == true
+
     runs-on: ubuntu-latest
 
     defaults:
@@ -20,13 +28,29 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install dependencies
         run: npm ci
 
       - name: Build project
         run: npm run build
+
+  docker:
+    needs: validate
+
+    runs-on: ubuntu-latest
+
+    env:
+      IMAGE_TAG: ${{ github.run_number }}
+
+    defaults:
+      run:
+        working-directory: ./microservices
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: DockerHub Login
         uses: docker/login-action@v3
@@ -36,8 +60,39 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t nicolascifuentesb/airport-k8s:latest .
+          docker build \
+            -t nicolascifuentesb/airport-k8s:${IMAGE_TAG} .
 
       - name: Push Docker image
         run: |
-          docker push nicolascifuentesb/airport-k8s:latest
+          docker push \
+            nicolascifuentesb/airport-k8s:${IMAGE_TAG}
+
+  gitops:
+    needs: docker
+
+    runs-on: ubuntu-latest
+
+    env:
+      IMAGE_TAG: ${{ github.run_number }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Helm values
+        run: |
+          sed -i "s/tag:.*/tag: ${IMAGE_TAG}/" airport-k8s/values.yaml
+
+      - name: Commit updated values.yaml
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add airport-k8s/values.yaml
+
+          git commit -m "[skip-ci] Update image tag to ${IMAGE_TAG}" || exit 0
+
+          git push
