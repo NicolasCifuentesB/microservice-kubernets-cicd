@@ -17,6 +17,9 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    env: 
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
     defaults:
       run:
         working-directory: ./microservices
@@ -42,6 +45,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       IMAGE_TAG: ${{ github.run_number }}
 
     defaults:
@@ -61,12 +65,15 @@ jobs:
       - name: Build Docker image
         run: |
           docker build \
-            -t nicolascifuentesb/airport-k8s:${IMAGE_TAG} .
+            -t nicolascifuentesb/airport-k8s:${IMAGE_TAG} \
+            -t nicolascifuentesb/airport-k8s:$latest .
 
       - name: Push Docker image
         run: |
           docker push \
             nicolascifuentesb/airport-k8s:${IMAGE_TAG}
+          docker push \
+            nicolascifuentesb/airport-k8s:$latest
 
   gitops:
     needs: docker
@@ -74,6 +81,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       IMAGE_TAG: ${{ github.run_number }}
 
     steps:
