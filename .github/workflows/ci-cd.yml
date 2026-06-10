@@ -50,7 +50,6 @@ jobs:
   docker:
     needs: validate
     if: |
-      always() &&
       needs.validate.result == 'success' &&
       (
         github.event.action != 'closed' ||
@@ -92,7 +91,6 @@ jobs:
   gitops:
     needs: docker
     if: |
-      always() &&
       needs.docker.result == 'success' &&
       github.event.pull_request.merged == true
 
