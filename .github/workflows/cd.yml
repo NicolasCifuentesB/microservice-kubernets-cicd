@@ -1,0 +1,49 @@
+name: CD GitOps Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'airport-k8s/values.yaml'
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+
+  gitops:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+
+      - name: Generate Image Tag
+        run: |
+          echo "IMAGE_TAG=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Update Helm values
+        run: |
+          sed -i "s/tag:.*/tag: ${IMAGE_TAG}/" airport-k8s/values.yaml
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add airport-k8s/values.yaml
+
+          if git diff --cached --quiet; then
+            echo "No changes detected, skipping commit"
+            exit 0
+          fi
+
+          git commit -m "ci: update image tag to ${IMAGE_TAG} [skip ci]"
+          git push
