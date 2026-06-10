@@ -5,6 +5,9 @@ on:
     branches:
       - main
     types:
+      - opened
+      - synchronize
+      - reopened
       - closed
 
 permissions:
@@ -16,7 +19,9 @@ env:
 jobs:
 
   validate:
-    if: github.event.pull_request.merged == true
+    if: |
+      github.event.action != 'closed' ||
+      github.event.pull_request.merged == true
 
     runs-on: ubuntu-latest
 
@@ -26,10 +31,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: 22
 
@@ -44,6 +49,13 @@ jobs:
 
   docker:
     needs: validate
+    if: |
+      always() &&
+      needs.validate.result == 'success' &&
+      (
+        github.event.action != 'closed' ||
+        github.event.pull_request.merged == true
+      )
 
     runs-on: ubuntu-latest
 
@@ -53,7 +65,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Generate Image Tag
         run: |
@@ -72,23 +84,26 @@ jobs:
             -t nicolascifuentesb/airport-k8s:latest .
 
       - name: Push versioned image
-        run: |
-          docker push nicolascifuentesb/airport-k8s:${IMAGE_TAG}
+        run: docker push nicolascifuentesb/airport-k8s:${IMAGE_TAG}
 
       - name: Push latest image
-        run: |
-          docker push nicolascifuentesb/airport-k8s:latest
+        run: docker push nicolascifuentesb/airport-k8s:latest
 
   gitops:
     needs: docker
+    if: |
+      always() &&
+      needs.docker.result == 'success' &&
+      github.event.pull_request.merged == true
 
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
 
       - name: Generate Image Tag
         run: |
@@ -100,15 +115,15 @@ jobs:
 
       - name: Commit and push changes
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add airport-k8s/values.yaml
 
           if git diff --cached --quiet; then
-            echo "No changes detected"
+            echo "No changes detected, skipping commit"
             exit 0
           fi
 
-          git commit -m "Update image tag to ${IMAGE_TAG}"
+          git commit -m "ci: update image tag to ${IMAGE_TAG} [skip ci]"
           git push
