@@ -7,10 +7,30 @@
  *  NOTA: Este pipeline es la representación formal y equivalente
  *  del flujo CI/CD implementado con GitHub Actions + Argo CD.
  *  La implementación productiva utiliza:
- *    CI  → .github/workflows/ci.yml  (trigger: pull_request a main)
- *    CD  → .github/workflows/cd.yml  (trigger: push a main)
- *    CD  → Argo CD sincroniza automáticamente el clúster AKS
- *          al detectar cambios en airport-k8s/values.yaml
+ *
+ *    CI  → .github/workflows/ci.yml
+ *          Trigger : pull_request a main
+ *                    (opened, synchronize, reopened)
+ *          Jobs    : validate  → tests + build del código fuente
+ *                    docker-build → build de imagen sin push
+ *                    (valida el artefacto antes del merge)
+ *
+ *    CD  → .github/workflows/cd.yml
+ *          Trigger : push a main
+ *                    (excluye cambios en airport-k8s/values.yaml)
+ *          Jobs    : docker → build + push a Docker Hub
+ *                    gitops → actualiza airport-k8s/values.yaml
+ *                             con el SHA del merge commit
+ *
+ *    CD  → Argo CD monitorea airport-k8s/values.yaml y sincroniza
+ *          automáticamente el clúster AKS al detectar el nuevo tag
+ *
+ *  SEPARACIÓN CI/CD:
+ *    - CI valida el código Y el artefacto (imagen) antes del merge
+ *    - CD construye, publica y despliega tras el merge a main
+ *    - El IMAGE_TAG se genera una sola vez en CD y se comparte
+ *      entre docker y gitops via job outputs, garantizando que
+ *      la imagen publicada y el tag en values.yaml son idénticos
  * ═══════════════════════════════════════════════════════════════
  */
 
@@ -27,12 +47,17 @@ pipeline {
 
     stages {
 
-        // ──────────────────────────────────────────────────────
+        // ══════════════════════════════════════════════════════
         //  PIPELINE CI
-        //  Equivalente a: .github/workflows/ci.yml
-        //  Trigger real : pull_request a main
-        //                 (opened, synchronize, reopened)
-        // ──────────────────────────────────────────────────────
+        //  Equivalente a : .github/workflows/ci.yml
+        //  Trigger real  : pull_request a main
+        //                  (opened, synchronize, reopened)
+        //
+        //  Propósito: verificar que el código es correcto
+        //  e integrable ANTES de permitir el merge.
+        //  El branch protection bloquea el merge hasta que
+        //  los jobs 'validate' y 'docker-build' estén en verde.
+        // ══════════════════════════════════════════════════════
 
         stage('Checkout') {
             steps {
@@ -47,9 +72,14 @@ pipeline {
         }
 
         stage('Install Dependencies') {
+            /*
+             * Equivalente al step: npm ci
+             * Instalación determinista usando package-lock.json.
+             * Garantiza reproducibilidad entre entornos.
+             */
             steps {
                 dir('microservices') {
-                    sh 'npm ci'
+                    sh "npm ci"
                 }
             }
         }
@@ -58,7 +88,8 @@ pipeline {
             /*
              * Equivalente al step: npm run test:coverage
              * Ejecuta la suite de tests unitarios con Jest.
-             * Si falla, los stages siguientes no se ejecutan.
+             * Genera reporte de cobertura de código.
+             * Si falla, los stages siguientes no se ejecutan (Fail Fast).
              */
             steps {
                 dir('microservices') {
@@ -71,7 +102,7 @@ pipeline {
             /*
              * Equivalente al step: npm run build
              * Compila TypeScript a JavaScript.
-             * Valida que el artefacto final puede construirse sin errores.
+             * Valida que el código fuente puede construirse sin errores.
              */
             steps {
                 dir('microservices') {
@@ -80,11 +111,49 @@ pipeline {
             }
         }
 
+        stage('Docker Build — Validation') {
+            /*
+             * Equivalente al job: docker-build en ci.yml
+             * Construye la imagen Docker SIN hacer push al registro.
+             *
+             * Propósito: validar el artefacto real antes del merge.
+             * Detecta errores del Dockerfile, dependencias de sistema
+             * faltantes o problemas de configuración del contenedor
+             * que los tests unitarios no pueden detectar.
+             *
+             * Al no hacer push, evita contaminar Docker Hub con
+             * imágenes de PRs que no llegaron a main.
+             */
+            steps {
+                dir('microservices') {
+                    sh "docker build -t ${IMAGE_NAME}:pr-validation ."
+                }
+            }
+        }
+
+        // ══════════════════════════════════════════════════════
+        //  PIPELINE CD
+        //  Equivalente a : .github/workflows/cd.yml
+        //  Trigger real  : push a main tras el merge del PR
+        //                  (excluye airport-k8s/values.yaml
+        //                   para evitar bucle infinito)
+        //
+        //  Propósito: producir y entregar el artefacto desplegable.
+        //  El IMAGE_TAG se genera una sola vez en este pipeline
+        //  y se reutiliza en todos los stages siguientes,
+        //  garantizando consistencia entre la imagen publicada
+        //  en Docker Hub y el tag registrado en values.yaml.
+        // ══════════════════════════════════════════════════════
+
         stage('Generate Image Tag') {
             /*
-             * Genera un tag único basado en el SHA corto del commit.
-             * Mismo criterio que en ci.yml:
-             *   git rev-parse --short HEAD
+             * Genera el tag basado en el SHA corto del merge commit.
+             * Al correr después del merge, el SHA corresponde
+             * exactamente al commit que llegó a main.
+             *
+             * Este mismo tag se usa en docker push y en gitops,
+             * resolviendo el problema de SHA inconsistente entre
+             * workflows que corren en commits distintos.
              */
             steps {
                 script {
@@ -97,57 +166,48 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Docker Build & Push') {
             /*
-             * Construye la imagen desde microservices/Dockerfile.
-             * Genera dos tags:
-             *   - nicolascifuentesb/airport-k8s:{SHA}   (versión específica)
-             *   - nicolascifuentesb/airport-k8s:latest  (última versión)
+             * Equivalente al job: docker en cd.yml
+             * Construye la imagen con el tag del merge commit
+             * y publica dos tags en Docker Hub:
+             *   - nicolascifuentesb/airport-k8s:{SHA}   versión específica
+             *   - nicolascifuentesb/airport-k8s:latest  última versión
+             *
+             * La estrategia de doble tag permite:
+             *   - Rollback a versiones específicas usando el SHA
+             *   - Referencia simple con latest en desarrollo
              */
             steps {
                 dir('microservices') {
                     sh """
+                        echo ${DOCKERHUB_CREDENTIALS_PSW} | \
+                          docker login -u ${DOCKERHUB_CREDENTIALS_USR} --password-stdin
+
                         docker build \
                           -t ${IMAGE_NAME}:${env.IMAGE_TAG} \
                           -t ${IMAGE_NAME}:latest .
+
+                        docker push ${IMAGE_NAME}:${env.IMAGE_TAG}
+                        docker push ${IMAGE_NAME}:latest
                     """
                 }
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Update Helm Values — GitOps') {
             /*
-             * Publica ambos tags en Docker Hub.
-             * Credenciales gestionadas como Jenkins secret 'dockerhub-credentials'.
-             * Equivalente a los steps de docker/login-action y docker push en ci.yml.
-             */
-            steps {
-                sh """
-                    echo ${DOCKERHUB_CREDENTIALS_PSW} | \
-                      docker login -u ${DOCKERHUB_CREDENTIALS_USR} --password-stdin
-                    docker push ${IMAGE_NAME}:${env.IMAGE_TAG}
-                    docker push ${IMAGE_NAME}:latest
-                """
-            }
-        }
-
-        // ──────────────────────────────────────────────────────
-        //  PIPELINE CD — GitOps
-        //  Equivalente a: .github/workflows/cd.yml
-        //  Trigger real : push a main
-        //                 (excluye cambios en airport-k8s/values.yaml
-        //                  para evitar bucle infinito)
-        // ──────────────────────────────────────────────────────
-
-        stage('Update Helm Values') {
-            /*
-             * Actualiza el tag de imagen en airport-k8s/values.yaml.
-             * Este archivo es la fuente de verdad del estado deseado
-             * del clúster. Argo CD monitorea este archivo y sincroniza
-             * automáticamente al detectar el cambio.
+             * Equivalente al job: gitops en cd.yml
+             * Actualiza airport-k8s/values.yaml con el IMAGE_TAG
+             * generado en el stage anterior (mismo SHA garantizado).
              *
              * El commit usa [skip ci] para evitar que el push
-             * reactive el pipeline recursivamente.
+             * reactive el pipeline de CD recursivamente.
+             * El paths-ignore en cd.yml actúa como segunda barrera.
+             *
+             * Una vez que el commit llega a main, Argo CD detecta
+             * la divergencia entre el estado en Git y el clúster AKS
+             * y ejecuta automáticamente el rolling update.
              */
             steps {
                 withCredentials([string(
@@ -193,9 +253,10 @@ pipeline {
         success {
             echo """
                 ✅ CI/CD exitoso.
-                Imagen : ${IMAGE_NAME}:${env.IMAGE_TAG}
-                GitOps : airport-k8s/values.yaml actualizado.
-                Próximo: Argo CD detecta el cambio y ejecuta rolling update en AKS.
+                Imagen  : ${IMAGE_NAME}:${env.IMAGE_TAG}
+                GitOps  : ${HELM_VALUES_PATH} actualizado.
+                Próximo : Argo CD detecta el cambio y ejecuta
+                          rolling update en AKS sin downtime.
             """
         }
         failure {
@@ -203,7 +264,7 @@ pipeline {
                 ❌ Pipeline fallido. Acciones recomendadas:
                 1. Revisar logs del stage fallido.
                 2. Corregir el error en la rama de feature.
-                3. Abrir nuevo PR para reiniciar el flujo.
+                3. Abrir nuevo PR para reiniciar el flujo CI.
             """
         }
     }
