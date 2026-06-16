@@ -18,25 +18,24 @@ const config: Config = {
   ],
 
   collectCoverage: true,
-
   coverageDirectory: 'coverage',
 
   collectCoverageFrom: [
     'src/**/*.ts',
-
     '!src/server.ts',
     '!src/app.ts',
-
     '!src/config/*.ts',
-
     '!src/**/index.ts'
   ],
 
   coverageReporters: [
     'text',
     'lcov',
-    'html'
+    'html',
+    'clover'
   ],
+
+  coveragePathIgnorePatterns: ['/node_modules/', '/dist/'],
 
   coverageThreshold: {
     global: {
@@ -48,7 +47,6 @@ const config: Config = {
   },
 
   clearMocks: true,
-
   verbose: true
 };
 
