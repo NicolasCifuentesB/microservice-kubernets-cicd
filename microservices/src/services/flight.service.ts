@@ -1,6 +1,5 @@
-import {config} from '../config/env'
+import { config } from '../config/env';
 export class FlightService {
-
   private readonly baseUrl = config.apiUrl;
 
   async getFlight() {

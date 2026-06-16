@@ -1,7 +1,5 @@
-
-import { config } from "../../config/env";
-import { UsersService } from "../../services/user.service";
-
+import { config } from '../../config/env';
+import { UsersService } from '../../services/user.service';
 
 jest.mock('../../config/env', () => ({
   config: {

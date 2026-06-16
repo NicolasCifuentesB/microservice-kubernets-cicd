@@ -19,7 +19,10 @@ describe('Message Routes', () => {
   describe('GET /message', () => {
     it('should call getMessage controller', async () => {
       mockedGetMessage.mockImplementation((_, res) => {
-        res.json({ service: 'test-service', message: 'Microservice running correctly with update 🚀' });
+        res.json({
+          service: 'test-service',
+          message: 'Microservice running correctly with update 🚀',
+        });
       });
 
       const response = await request(app).get('/message');
