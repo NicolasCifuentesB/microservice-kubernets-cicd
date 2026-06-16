@@ -10,7 +10,7 @@ router.get('/', async (_, res) => {
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({
-      message: 'Error retrieving users'
+      message: 'Error retrieving users',
     });
   }
 });
@@ -22,7 +22,7 @@ router.get('/:id', async (req, res) => {
     res.status(200).json(user);
   } catch (error) {
     res.status(404).json({
-      message: 'User not found'
+      message: 'User not found',
     });
   }
 });

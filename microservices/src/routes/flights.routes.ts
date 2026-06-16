@@ -10,7 +10,7 @@ router.get('/', async (_, res) => {
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({
-      message: 'Error retrieving flights'
+      message: 'Error retrieving flights',
     });
   }
 });
@@ -22,7 +22,7 @@ router.get('/:id', async (req, res) => {
     res.status(200).json(flight);
   } catch (error) {
     res.status(404).json({
-      message: 'Flight not found'
+      message: 'Flight not found',
     });
   }
 });

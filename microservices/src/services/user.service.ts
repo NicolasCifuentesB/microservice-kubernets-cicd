@@ -1,6 +1,5 @@
-import {config} from '../config/env'
+import { config } from '../config/env';
 export class UsersService {
-
   private readonly baseUrl = config.apiUrl;
 
   async getUsers() {
