@@ -27,7 +27,7 @@ describe('MessageController - getMessage', () => {
     expect(jsonMock).toHaveBeenCalledTimes(1);
     expect(jsonMock).toHaveBeenCalledWith({
       service: config.serviceName,
-      message: 'Microservice running correctly with update! 🚀',
+      message: 'Microservice running correctly with latest update! 🚀',
     });
   });
 
