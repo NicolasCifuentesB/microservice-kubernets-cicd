@@ -14,3 +14,8 @@ container:
   port: 3000
 
 appName: airport-k8s
+
+metrics:
+  enabled: true
+  port: 3000
+  path: /metrics
