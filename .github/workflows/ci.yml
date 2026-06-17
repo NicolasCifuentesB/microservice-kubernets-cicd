@@ -95,6 +95,11 @@ jobs:
           sed -i 's|SF:src\\|SF:src/|g' microservices/coverage/lcov.info
           sed -i 's|\\|/|g' microservices/coverage/lcov.info
 
+      - name: Verify coverage file
+        run: |
+          echo "=== First 10 lines after fix ==="
+          head -10 microservices/coverage/lcov.info
+
       - name: SonarCloud scan
         uses: SonarSource/sonarcloud-github-action@master
         env:
