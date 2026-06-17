@@ -1,28 +1,27 @@
 apiVersion: apps/v1
 kind: Deployment
-
 metadata:
   name: {{ .Values.appName }}
-
 spec:
   replicas: {{ .Values.replicaCount }}
-
   selector:
     matchLabels:
       app: {{ .Values.appName }}
-
   template:
     metadata:
       labels:
         app: {{ .Values.appName }}
-
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.container.port }}"
+        prometheus.io/path: "{{ .Values.metrics.path }}"
     spec:
       containers:
         - name: {{ .Values.appName }}
-
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-
           ports:
-            - containerPort: {{ .Values.container.port }}
+            - name: http
+              containerPort: {{ .Values.container.port }}
+            - name: metrics
+              containerPort: {{ .Values.metrics.port }}
