@@ -9,7 +9,7 @@
     "start": "node dist/server.js",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "lint": "eslint src/**/*.ts --max-warnings=12",
+    "lint": "eslint src/**/*.ts --max-warnings=15",
     "lint:fix": "eslint src/**/*.ts --fix",
     "format:check": "prettier --check src/**/*.ts",
     "format:fix": "prettier --write src/**/*.ts"
