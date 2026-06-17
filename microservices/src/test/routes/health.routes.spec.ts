@@ -17,7 +17,7 @@ describe('Health Routes', () => {
     it('should return status UP', async () => {
       const response = await request(app).get('/health');
 
-      expect(response.body).toHaveProperty('status', 'UP');
+      expect(response.body).toHaveProperty('status', 'UP!');
     });
 
     it('should return a timestamp', async () => {

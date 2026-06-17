@@ -39,7 +39,7 @@ describe('UsersService', () => {
     it('should throw an error when response is not ok', async () => {
       mockFetch.mockResolvedValue({ ok: false });
 
-      await expect(service.getUsers()).rejects.toThrow('Error getting users');
+      await expect(service.getUsers()).rejects.toThrow('Error getting users!');
     });
 
     it('should call the correct URL', async () => {
@@ -72,7 +72,7 @@ describe('UsersService', () => {
     it('should throw an error with the user id when not found', async () => {
       mockFetch.mockResolvedValue({ ok: false });
 
-      await expect(service.getUserById('99')).rejects.toThrow('User 99 not found');
+      await expect(service.getUserById('99')).rejects.toThrow('User 99 not found!');
     });
 
     it('should call the correct URL with the given id', async () => {

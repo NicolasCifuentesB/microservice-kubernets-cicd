@@ -52,7 +52,7 @@ describe('Flight Routes', () => {
       const response = await request(app).get('/flights');
 
       expect(response.status).toBe(500);
-      expect(response.body).toEqual({ message: 'Error retrieving flights' });
+      expect(response.body).toEqual({ message: 'Error retrieving flights!' });
     });
   });
 
@@ -73,7 +73,7 @@ describe('Flight Routes', () => {
       const response = await request(app).get('/flights/999');
 
       expect(response.status).toBe(404);
-      expect(response.body).toEqual({ message: 'Flight not found' });
+      expect(response.body).toEqual({ message: 'Flight not found!' });
     });
 
     it('should pass the correct id param to the service', async () => {
