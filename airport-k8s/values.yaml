@@ -19,3 +19,8 @@ metrics:
   enabled: true
   port: 3000
   path: /metrics
+
+grafana:
+  enabled: true
+  dashboards:
+    enabled: true
