@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: nicolascifuentesb/airport-k8s
-  tag: 43afe65
+  tag: ff98f12
   pullPolicy: Always
 
 service:
