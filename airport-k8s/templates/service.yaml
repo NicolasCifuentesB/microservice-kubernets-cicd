@@ -3,13 +3,16 @@ kind: Service
 
 metadata:
   name: {{ .Values.appName }}-service
+  labels:
+    app: {{ .Values.appName }}
 
 spec:
   selector:
     app: {{ .Values.appName }}
 
   ports:
-    - protocol: TCP
+    - name: http
+      protocol: TCP
       port: {{ .Values.service.port }}
       targetPort: {{ .Values.service.targetPort }}
 
