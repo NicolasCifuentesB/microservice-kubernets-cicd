@@ -108,8 +108,42 @@ jobs:
         with:
           projectBaseDir: microservices
 
+  snyk:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./microservices
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Snyk — dependency vulnerability scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --all-projects
+
+      - name: Snyk — code analysis (SAST)
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: code test
+          args: --severity-threshold=high
+
   docker-build:
-    needs: [validate, lint, sonar]
+    needs: [validate, lint, sonar, snyk]
 
     runs-on: ubuntu-latest
 
