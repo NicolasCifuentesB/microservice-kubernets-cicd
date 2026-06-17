@@ -39,7 +39,7 @@ describe('FlightService', () => {
     it('should throw an error when response is not ok', async () => {
       mockFetch.mockResolvedValue({ ok: false });
 
-      await expect(service.getFlight()).rejects.toThrow('Error getting flight');
+      await expect(service.getFlight()).rejects.toThrow('Error getting flight!');
     });
 
     it('should call the correct URL', async () => {
@@ -72,7 +72,7 @@ describe('FlightService', () => {
     it('should throw an error with the flight id when not found', async () => {
       mockFetch.mockResolvedValue({ ok: false });
 
-      await expect(service.getFlightById('99')).rejects.toThrow('Flight 99 not found');
+      await expect(service.getFlightById('99')).rejects.toThrow('Flight 99 not found!');
     });
 
     it('should call the correct URL with the given id', async () => {

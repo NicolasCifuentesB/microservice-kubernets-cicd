@@ -52,7 +52,7 @@ describe('User Routes', () => {
       const response = await request(app).get('/users');
 
       expect(response.status).toBe(500);
-      expect(response.body).toEqual({ message: 'Error retrieving users' });
+      expect(response.body).toEqual({ message: 'Error retrieving users!' });
     });
   });
 
@@ -73,7 +73,7 @@ describe('User Routes', () => {
       const response = await request(app).get('/users/999');
 
       expect(response.status).toBe(404);
-      expect(response.body).toEqual({ message: 'User not found' });
+      expect(response.body).toEqual({ message: 'User not found!' });
     });
 
     it('should pass the correct id param to the service', async () => {
